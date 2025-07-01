@@ -99,13 +99,13 @@ services:
           cpus: "0.5"
           memory: 512M
 
-  statsd-exporter:
-    image: prom/statsd-exporter
-    ports:
-      - "9125:9125/udp"
-      - "9100:9100"
-    networks:
-      - app_rh
+  # statsd-exporter:
+  #   image: prom/statsd-exporter
+  #   ports:
+  #     - "9125:9125/udp"
+  #     - "9100:9100"
+  #   networks:
+  #     - app_rh
 
   prometheus:
     image: prom/prometheus
@@ -121,6 +121,7 @@ services:
         limits:
           cpus: "0.7"
           memory: 768M
+
   grafana:
     image: grafana/grafana
     container_name: grafana
