@@ -15,7 +15,7 @@ services:
       - odoo_data:/var/lib/odoo
       - shared_files:/mnt/shared_files
     networks:
-      - app_network
+      - app_rh
     deploy:
       resources:
         limits:
@@ -31,7 +31,7 @@ services:
     volumes:
       - db_odoo_data:/var/lib/postgresql/data
     networks:
-      - app_network
+      - app_rh
     deploy:
       resources:
         limits:
@@ -56,7 +56,7 @@ services:
       - nextcloud_data:/var/www/html
       - shared_files:/mnt/shared
     networks:
-      - app_network
+      - app_rh
     deploy:
       resources:
         limits:
@@ -76,7 +76,6 @@ services:
       - db_nextcloud_data:/var/lib/postgresql/data
     networks:
       - app_rh
-      - elasticsearch-net
     deploy:
       resources:
         limits:
@@ -94,7 +93,6 @@ services:
       - kanboard_ssl:/etc/nginx/ssl
     networks:
       - app_rh
-      - elasticsearch-net
     deploy:
       resources:
         limits:
@@ -108,7 +106,37 @@ services:
       - "9100:9100"
     networks:
       - app_rh
-      - elasticsearch-net
+
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - app_rh
+    deploy:
+      resources:
+        limits:
+          cpus: "0.7"
+          memory: 768M
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    ports:
+      - "3001:3000"
+    volumes:
+      - grafana-storage:/var/lib/grafana
+    depends_on:
+      - prometheus
+    networks:
+      - app_rh
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
 
 volumes:
   odoo_data:
@@ -119,6 +147,7 @@ volumes:
   kanboard_data:
   kanboard_plugins:
   kanboard_ssl:
+  grafana-storage:
 
 networks:
   app_rh:
