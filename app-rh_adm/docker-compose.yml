@@ -1,0 +1,125 @@
+services:
+  web:
+    image: odoo_custom
+    container_name: odoocustom
+    depends_on:
+      - db
+    ports:
+      - "8069:8069"
+    environment:
+      - POSTGRES_HOST=db
+      - POSTGRES_DB=postgres
+      - POSTGRES_USER=odoo
+      - POSTGRES_PASSWORD=myodoo
+    volumes:
+      - odoo_data:/var/lib/odoo
+      - shared_files:/mnt/shared_files
+    networks:
+      - app_network
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1024M
+
+  db:
+    image: postgres:15
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_USER=odoo
+      - POSTGRES_PASSWORD=myodoo
+    volumes:
+      - db_odoo_data:/var/lib/postgresql/data
+    networks:
+      - app_network
+    deploy:
+      resources:
+        limits:
+          cpus: "0.7"
+          memory: 768M
+
+  nextcloud:
+    image: nextcloud
+    container_name: nextcloud
+    depends_on:
+      - db
+    ports:
+      - "8080:80"
+    environment:
+      - NEXTCLOUD_ADMIN_USER=admin
+      - NEXTCLOUD_ADMIN_PASSWORD=admin
+      - POSTGRES_HOST=db-nextcloud
+      - POSTGRES_DB=nextcloud
+      - POSTGRES_USER=nextcloud
+      - POSTGRES_PASSWORD=mynextcloud
+    volumes:
+      - nextcloud_data:/var/www/html
+      - shared_files:/mnt/shared
+    networks:
+      - app_network
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1024M
+
+  db-nextcloud:
+    image: postgres:15
+    container_name: postgres_db_nextcloud
+    environment:
+      - POSTGRES_DB=nextcloud
+      - POSTGRES_USER=nextcloud
+      - POSTGRES_PASSWORD=mynextcloud
+    ports:
+      - "5434:5432"
+    volumes:
+      - db_nextcloud_data:/var/lib/postgresql/data
+    networks:
+      - app_rh
+      - elasticsearch-net
+    deploy:
+      resources:
+        limits:
+          cpus: "0.7"
+          memory: 768M
+
+  kanboard:
+    image: kanboard/kanboard:latest
+    container_name: kanboard
+    ports:
+      - "8082:80"
+    volumes:
+      - kanboard_data:/var/www/app/data
+      - kanboard_plugins:/var/www/app/plugins
+      - kanboard_ssl:/etc/nginx/ssl
+    networks:
+      - app_rh
+      - elasticsearch-net
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+
+  statsd-exporter:
+    image: prom/statsd-exporter
+    ports:
+      - "9125:9125/udp"
+      - "9100:9100"
+    networks:
+      - app_rh
+      - elasticsearch-net
+
+volumes:
+  odoo_data:
+  db_odoo_data:
+  nextcloud_data:
+  db_nextcloud_data:
+  shared_files:
+  kanboard_data:
+  kanboard_plugins:
+  kanboard_ssl:
+
+networks:
+  app_rh:
+
