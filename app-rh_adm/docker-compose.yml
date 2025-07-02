@@ -99,14 +99,6 @@ services:
           cpus: "0.5"
           memory: 512M
 
-  # statsd-exporter:
-  #   image: prom/statsd-exporter
-  #   ports:
-  #     - "9125:9125/udp"
-  #     - "9100:9100"
-  #   networks:
-  #     - app_rh
-
   prometheus:
     image: prom/prometheus
     container_name: prometheus
@@ -139,19 +131,21 @@ services:
           cpus: "0.5"
           memory: 512M
 
-    sonarqube:
+  sonarqube:
     image: sonarqube:latest
     container_name: sonarqube
     ports:
       - "9000:9000"
     environment:
-      - SONAR_JDBC_URL=jdbc:postgresql://db:5432/sonar
+      - SONAR_JDBC_URL=jdbc:postgresql://db-sonarqube:5432/sonar
       - SONAR_JDBC_USERNAME=sonar
       - SONAR_JDBC_PASSWORD=sonar
     depends_on:
-      - db
+      - db-sonarqube
+    networks:
+      - app_rh
 
-  db:
+  db-sonarqube:
     image: postgres:13
     container_name: sonardb
     environment:
@@ -160,7 +154,8 @@ services:
       - POSTGRES_DB=sonar
     volumes:
       - sonardb_data:/var/lib/postgresql/data
-
+    networks:
+      - app_rh
 
 volumes:
   odoo_data:
@@ -176,4 +171,3 @@ volumes:
 
 networks:
   app_rh:
-
