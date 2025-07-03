@@ -1,0 +1,29 @@
+name: Deploy Monitoring Stack via Ansible
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: SSH & Run Ansible Playbook
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.VM_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Run Ansible Playbook on Remote Host
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} << 'EOF'
+            sudo su << EOS
+              cd /home/azureuser/ansible/monitoring
+              ansible-playbook -i ../inventory deloystack.yml
+            EOS
+          EOF
