@@ -23,5 +23,5 @@ jobs:
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} '
             cd /home/azureuser/ansible/monitoring
-            sudo ansible-playbook -i ../inventory deloystack.yml
+            sudo ansible-playbook -i ../inventory deploystack.yml
           '
