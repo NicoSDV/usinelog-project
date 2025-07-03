@@ -82,92 +82,12 @@ services:
           cpus: "0.7"
           memory: 768M
 
-  kanboard:
-    image: kanboard/kanboard:latest
-    container_name: kanboard
-    ports:
-      - "8082:80"
-    volumes:
-      - kanboard_data:/var/www/app/data
-      - kanboard_plugins:/var/www/app/plugins
-      - kanboard_ssl:/etc/nginx/ssl
-    networks:
-      - app_rh
-    deploy:
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: 512M
-
-  prometheus:
-    image: prom/prometheus
-    container_name: prometheus
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-    networks:
-      - app_rh
-    deploy:
-      resources:
-        limits:
-          cpus: "0.7"
-          memory: 768M
-
-  grafana:
-    image: grafana/grafana
-    container_name: grafana
-    ports:
-      - "3001:3000"
-    volumes:
-      - grafana-storage:/var/lib/grafana
-    depends_on:
-      - prometheus
-    networks:
-      - app_rh
-    deploy:
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: 512M
-
-  sonarqube:
-    image: sonarqube:latest
-    container_name: sonarqube
-    ports:
-      - "9000:9000"
-    environment:
-      - SONAR_JDBC_URL=jdbc:postgresql://db-sonarqube:5432/sonar
-      - SONAR_JDBC_USERNAME=sonar
-      - SONAR_JDBC_PASSWORD=sonar
-    depends_on:
-      - db-sonarqube
-    networks:
-      - app_rh
-
-  db-sonarqube:
-    image: postgres:13
-    container_name: sonardb
-    environment:
-      - POSTGRES_USER=sonar
-      - POSTGRES_PASSWORD=sonar
-      - POSTGRES_DB=sonar
-    volumes:
-      - sonardb_data:/var/lib/postgresql/data
-    networks:
-      - app_rh
-
 volumes:
   odoo_data:
   db_odoo_data:
   nextcloud_data:
   db_nextcloud_data:
   shared_files:
-  kanboard_data:
-  kanboard_plugins:
-  kanboard_ssl:
-  grafana-storage:
-  sonardb_data:
 
 networks:
   app_rh:
