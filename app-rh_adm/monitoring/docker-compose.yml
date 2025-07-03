@@ -9,11 +9,6 @@ services:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
     networks:
       - app_rh
-    deploy:
-      resources:
-        limits:
-          cpus: "0.7"
-          memory: 768M
 
   grafana:
     image: grafana/grafana
@@ -26,11 +21,6 @@ services:
       - prometheus
     networks:
       - app_rh
-    deploy:
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: 512M
 
   sonarqube:
     image: sonarqube:latest
@@ -55,6 +45,22 @@ services:
       - POSTGRES_DB=sonar
     volumes:
       - sonardb_data:/var/lib/postgresql/data
+    networks:
+      - app_rh
+
+  loki:
+    image: grafana/loki:latest
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - app_rh
+
+  promtail:
+    image: grafana/promtail:latest
+    volumes:
+      - /var/log:/var/log
+    command: -config.file=/etc/promtail/config.yml
     networks:
       - app_rh
 

@@ -16,11 +16,6 @@ services:
       - shared_files:/mnt/shared_files
     networks:
       - app_rh
-    deploy:
-      resources:
-        limits:
-          cpus: "1.0"
-          memory: 1024M
 
   db:
     image: postgres:15
@@ -32,11 +27,6 @@ services:
       - db_odoo_data:/var/lib/postgresql/data
     networks:
       - app_rh
-    deploy:
-      resources:
-        limits:
-          cpus: "0.7"
-          memory: 768M
 
   nextcloud:
     image: nextcloud
@@ -57,11 +47,6 @@ services:
       - shared_files:/mnt/shared
     networks:
       - app_rh
-    deploy:
-      resources:
-        limits:
-          cpus: "1.0"
-          memory: 1024M
 
   db-nextcloud:
     image: postgres:15
@@ -76,11 +61,6 @@ services:
       - db_nextcloud_data:/var/lib/postgresql/data
     networks:
       - app_rh
-    deploy:
-      resources:
-        limits:
-          cpus: "0.7"
-          memory: 768M
 
 volumes:
   odoo_data:
