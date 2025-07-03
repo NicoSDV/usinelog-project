@@ -1,5 +1,6 @@
 services:
   web:
+    build: ./app-rh-adm/application
     container_name: odoocustom
     depends_on:
       - db
