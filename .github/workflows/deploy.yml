@@ -21,68 +21,30 @@ jobs:
           ssh-private-key: |
             ${{ secrets.SSH_PRIVATE_KEY }}
 
-      # Step 1 - Copie des fichiers de Github -> JumpHost
-      - name: Copy app files to jump host
+      # Copier la clé privée sur le bastion (jump host)
+      - name: Copy private key to jump host
         run: |
-          scp -o StrictHostKeyChecking=no \
-            -r app-rh_adm/application \
-            ${{ secrets.JUMP_HOST_USER }}@${{ secrets.JUMP_HOST_IP }}:/home/${{ secrets.JUMP_HOST_USER }}/
+          # Copie la clé privée dans un fichier temporaire
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > id_rsa_tmp
+          chmod 600 id_rsa_tmp
 
-      - name: Copy monitoring files to jump host
+          # Copie vers le bastion
+          scp -o StrictHostKeyChecking=no id_rsa_tmp \
+            ${{ secrets.JUMP_HOST_USER }}@${{ secrets.JUMP_HOST_IP }}:/home/${{ secrets.JUMP_HOST_USER }}/id_rsa
+
+          # Nettoyage
+          rm id_rsa_tmp
+
+      # Ajuster permissions sur le jump host
+      - name: Fix permissions on private key in jump host
         run: |
-          scp -o StrictHostKeyChecking=no \
-            -r app-rh_adm/monitoring \
-            ${{ secrets.JUMP_HOST_USER }}@${{ secrets.JUMP_HOST_IP }}:/home/${{ secrets.JUMP_HOST_USER }}/
+          ssh -o StrictHostKeyChecking=no ${{ secrets.JUMP_HOST_USER }}@${{ secrets.JUMP_HOST_IP }} \
+            "chmod 600 /home/${{ secrets.JUMP_HOST_USER }}/id_rsa"
 
-      # Step 2 - Jump Host -→ copy & deploy vers la vm-application
-      - name: Deploy to APP VM from jump host
+      # Tester la connexion SSH depuis bastion -> VM APP
+      - name: Test SSH connection from jump host to APP VM
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.JUMP_HOST_USER }}@${{ secrets.JUMP_HOST_IP }} << 'EOF'
-            # Copy files to app VM
-            scp -o StrictHostKeyChecking=no -r /home/${{ secrets.JUMP_HOST_USER }}/application azureuser@10.2.0.10:/home/azureuser/
-
-            # Install Docker if not already installed
-            ssh -o StrictHostKeyChecking=no azureuser@10.2.0.10 << 'INNER'
-              sudo apt update
-              sudo apt install -y ca-certificates curl gnupg lsb-release
-              sudo mkdir -p /etc/apt/keyrings
-              curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-              echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
-                https://download.docker.com/linux/debian $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-              sudo apt update
-              sudo apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
-            INNER
-
-            # Deploy app
-            ssh -o StrictHostKeyChecking=no azureuser@10.2.0.10 << 'INNER'
-              cd /home/azureuser/application
-              docker build -t odoo_custom .
-              docker compose up -d
-            INNER
-          EOF
-
-      # Step 3 - Jump Host -→ copy & deploy vers la vm-monitoring
-      - name: Deploy to Monitoring VM from jump host
-        run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.JUMP_HOST_USER }}@${{ secrets.JUMP_HOST_IP }} << 'EOF'
-            # Copy files to monitoring VM
-            scp -o StrictHostKeyChecking=no -r /home/${{ secrets.JUMP_HOST_USER }}/monitoring azureuser@10.1.0.10:/home/azureuser/
-
-            # Install Docker if not already installed
-            ssh -o StrictHostKeyChecking=no azureuser@10.1.0.10 << 'INNER'
-              sudo apt update
-              sudo apt install -y ca-certificates curl gnupg lsb-release
-              sudo mkdir -p /etc/apt/keyrings
-              curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-              echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
-                https://download.docker.com/linux/debian $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-              sudo apt update
-              sudo apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
-            INNER
-
-            # Deploy monitoring
-            ssh -o StrictHostKeyChecking=no azureuser@10.1.0.10 << 'INNER'
-              cd /home/azureuser/monitoring
-              docker compose up -d
-            INNER
+          ssh -o StrictHostKeyChecking=no ${{ secrets.JUMP_HOST_USER }}@${{ secrets.JUMP_HOST_IP }} << EOF
+            ssh -i /home/${{ secrets.JUMP_HOST_USER }}/id_rsa \
+              -o StrictHostKeyChecking=no azureuser@10.2.0.10 "echo '✅ Connexion réussie depuis le jump host vers la VM APP !'"
           EOF
