@@ -7,8 +7,8 @@ on:
       - main
 
 jobs:
-  deploy-app:
-    name: Deploy App VM
+  deploy:
+    name: Deploy via Jump Host
     runs-on: ubuntu-latest
 
     steps:
@@ -20,74 +20,68 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      - name: Copy app docker-compose files to VM
+      # Step 1 - Copy files from GitHub runner → jump host
+      - name: Copy app files to jump host
         run: |
           scp -o StrictHostKeyChecking=no \
             -r usinelog-project/app-rh_adm/application \
-            ${{ secrets.AZURE_ADMIN_USERNAME }}@${{ secrets.APP_VM_IP }}:/home/${{ secrets.AZURE_ADMIN_USERNAME }}/
+            ${{ secrets.JUMP_HOST_USER }}@${{ secrets.JUMP_HOST_IP }}:/home/${{ secrets.JUMP_HOST_USER }}/
 
-      - name: Install Docker on app VM
-        run: |
-          ssh -o StrictHostKeyChecking=no \
-            ${{ secrets.AZURE_ADMIN_USERNAME }}@${{ secrets.APP_VM_IP }} << 'EOF'
-              sudo apt update
-              sudo apt install -y ca-certificates curl gnupg lsb-release
-              sudo mkdir -p /etc/apt/keyrings
-              curl -fsSL https://download.docker.com/linux/debian/gpg \
-                | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-              echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian $(lsb_release -cs) stable" \
-                | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-              sudo apt update
-              sudo apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
-          EOF
-
-      - name: Deploy app containers
-        run: |
-          ssh -o StrictHostKeyChecking=no \
-            ${{ secrets.AZURE_ADMIN_USERNAME }}@${{ secrets.APP_VM_IP }} << 'EOF'
-              cd /home/${{ secrets.AZURE_ADMIN_USERNAME }}/application
-              docker build -t odoo_custom
-              docker compose up -d
-          EOF
-
-  deploy-monitoring:
-    name: Deploy Monitoring VM
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up SSH key
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-
-      - name: Copy monitoring docker-compose files to VM
+      - name: Copy monitoring files to jump host
         run: |
           scp -o StrictHostKeyChecking=no \
             -r usinelog-project/app-rh_adm/monitoring \
-            ${{ secrets.AZURE_ADMIN_USERNAME }}@${{ secrets.MONITORING_VM_IP }}:/home/${{ secrets.AZURE_ADMIN_USERNAME }}/
+            ${{ secrets.JUMP_HOST_USER }}@${{ secrets.JUMP_HOST_IP }}:/home/${{ secrets.JUMP_HOST_USER }}/
 
-      - name: Install Docker on monitoring VM
+      # Step 2 - From jump host → copy & deploy to VM APP
+      - name: Deploy to APP VM from jump host
         run: |
-          ssh -o StrictHostKeyChecking=no \
-            ${{ secrets.AZURE_ADMIN_USERNAME }}@${{ secrets.MONITORING_VM_IP }} << 'EOF'
+          ssh -o StrictHostKeyChecking=no ${{ secrets.JUMP_HOST_USER }}@${{ secrets.JUMP_HOST_IP }} << 'EOF'
+            # Copy files to app VM
+            scp -o StrictHostKeyChecking=no -r /home/${{ secrets.JUMP_HOST_USER }}/application azureuser@10.2.0.10:/home/azureuser/
+
+            # Install Docker if not already installed
+            ssh -o StrictHostKeyChecking=no azureuser@10.2.0.10 << 'INNER'
               sudo apt update
               sudo apt install -y ca-certificates curl gnupg lsb-release
               sudo mkdir -p /etc/apt/keyrings
-              curl -fsSL https://download.docker.com/linux/debian/gpg \
-                | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-              echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian $(lsb_release -cs) stable" \
-                | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+              curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+              echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+                https://download.docker.com/linux/debian $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
               sudo apt update
               sudo apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+            INNER
+
+            # Deploy app
+            ssh -o StrictHostKeyChecking=no azureuser@10.2.0.10 << 'INNER'
+              cd /home/azureuser/application
+              docker build -t odoo_custom .
+              docker compose up -d
+            INNER
           EOF
 
-      - name: Deploy monitoring containers
+      # Step 3 - From jump host → copy & deploy to VM MONITORING
+      - name: Deploy to Monitoring VM from jump host
         run: |
-          ssh -o StrictHostKeyChecking=no \
-            ${{ secrets.AZURE_ADMIN_USERNAME }}@${{ secrets.MONITORING_VM_IP }} << 'EOF'
-              cd /home/${{ secrets.AZURE_ADMIN_USERNAME }}/monitoring
+          ssh -o StrictHostKeyChecking=no ${{ secrets.JUMP_HOST_USER }}@${{ secrets.JUMP_HOST_IP }} << 'EOF'
+            # Copy files to monitoring VM
+            scp -o StrictHostKeyChecking=no -r /home/${{ secrets.JUMP_HOST_USER }}/monitoring azureuser@10.1.0.10:/home/azureuser/
+
+            # Install Docker if not already installed
+            ssh -o StrictHostKeyChecking=no azureuser@10.1.0.10 << 'INNER'
+              sudo apt update
+              sudo apt install -y ca-certificates curl gnupg lsb-release
+              sudo mkdir -p /etc/apt/keyrings
+              curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+              echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+                https://download.docker.com/linux/debian $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+              sudo apt update
+              sudo apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+            INNER
+
+            # Deploy monitoring
+            ssh -o StrictHostKeyChecking=no azureuser@10.1.0.10 << 'INNER'
+              cd /home/azureuser/monitoring
               docker compose up -d
+            INNER
           EOF
