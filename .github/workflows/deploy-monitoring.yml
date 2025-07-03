@@ -21,9 +21,6 @@ jobs:
 
       - name: Run Ansible Playbook on Remote Host
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} << 'EOF'
-            sudo su << EOS
-              cd /home/azureuser/ansible/monitoring
-              ansible-playbook -i ../inventory deloystack.yml
-            EOS
+          ssh -tt -o StrictHostKeyChecking=no ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} << 'EOF'
+            sudo bash -c "cd /home/azureuser/ansible/monitoring && ansible-playbook -i ../inventory deloystack.yml"
           EOF
