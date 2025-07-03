@@ -1,6 +1,5 @@
 services:
   web:
-    image: odoo_custom
     container_name: odoocustom
     depends_on:
       - db
