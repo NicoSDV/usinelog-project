@@ -21,20 +21,20 @@ jobs:
           ssh-private-key: |
             ${{ secrets.SSH_PRIVATE_KEY }}
 
-      # Step 1 - Copy files from GitHub runner → jump host
+      # Step 1 - Copie des fichiers de Github -> JumpHost
       - name: Copy app files to jump host
         run: |
           scp -o StrictHostKeyChecking=no \
-            -r usinelog-project/app-rh_adm/application \
+            -r app-rh_adm/application \
             ${{ secrets.JUMP_HOST_USER }}@${{ secrets.JUMP_HOST_IP }}:/home/${{ secrets.JUMP_HOST_USER }}/
 
       - name: Copy monitoring files to jump host
         run: |
           scp -o StrictHostKeyChecking=no \
-            -r usinelog-project/app-rh_adm/monitoring \
+            -r app-rh_adm/monitoring \
             ${{ secrets.JUMP_HOST_USER }}@${{ secrets.JUMP_HOST_IP }}:/home/${{ secrets.JUMP_HOST_USER }}/
 
-      # Step 2 - From jump host → copy & deploy to VM APP
+      # Step 2 - Jump Host -→ copy & deploy vers la vm-application
       - name: Deploy to APP VM from jump host
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.JUMP_HOST_USER }}@${{ secrets.JUMP_HOST_IP }} << 'EOF'
@@ -61,7 +61,7 @@ jobs:
             INNER
           EOF
 
-      # Step 3 - From jump host → copy & deploy to VM MONITORING
+      # Step 3 - Jump Host -→ copy & deploy vers la vm-monitoring
       - name: Deploy to Monitoring VM from jump host
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.JUMP_HOST_USER }}@${{ secrets.JUMP_HOST_IP }} << 'EOF'
