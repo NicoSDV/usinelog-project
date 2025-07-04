@@ -1,4 +1,4 @@
-name: Deploy Monitoring Stack via Ansible
+name: Provisionnement et déploiement des Stack via Ansible
 
 on:
   workflow_dispatch:
@@ -19,6 +19,20 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H ${{ secrets.VM_HOST }} >> ~/.ssh/known_hosts
 
+      - name: Run Terraform with Ansible
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} '
+          cd /home/azureuser/terraform
+          terraform init
+          terraform plan -out=tfplan
+          terraform apply -auto-approve
+          '
+      - name: Run Ansible Playbook on Remote Host
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} '
+            cd /home/azureuser/ansible/application
+            sudo ansible-playbook -i ../inventory deploy_application.yml
+          '
       - name: Run Ansible Playbook on Remote Host
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} '
