@@ -8,63 +8,29 @@ jobs:
     name: SSH & Run Ansible Playbook
     runs-on: ubuntu-latest
 
-    env:
-      VM_MONITORING: ${{ secrets.VM_MONITORING }}
-      VM_APPLICATION: ${{ secrets.VM_APPLICATION }}
-      VM_USER: ${{ secrets.VM_USER }}
-      SSH_PUBLIC_KEY: ${{ secrets.SSH_PUBLIC_KEY }}
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        
-      - name: Setup SSH private key
+
+      - name: Run Terraform 
         run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-
-      - name: Add known hosts for target VMs
-        env:
-          VM_MONITORING: ${{ secrets.VM_MONITORING }}
-          VM_APPLICATION: ${{ secrets.VM_APPLICATION }}
-        run: |
-          echo "Adding known host for monitoring VM: $VM_MONITORING"
-          bash -c "ssh-keyscan -H $VM_MONITORING >> ~/.ssh/known_hosts" || true
-          echo "Adding known host for application VM: $VM_APPLICATION"
-          bash -c "ssh-keyscan -H $VM_APPLICATION >> ~/.ssh/known_hosts" || true
-
-
-
-      - name: Run Terraform
-        run: |
-          ssh -o StrictHostKeyChecking=no $VM_USER@$VM_MONITORING '
-            cd /home/azureuser/terraform
-            terraform init
-            terraform plan -out=tfplan
-            terraform apply -auto-approve
+          ssh -o StrictHostKeyChecking=no ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} '
+          cd /home/azureuser/terraform
+          terraform init
+          terraform plan -out=tfplan
+          terraform apply -auto-approve
           '
-
-      - name: Push Ansible SSH public key on monitoring VM
+        
+            
+      - name: Deploy Ansible Playbook on Remote Host
         run: |
-          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no $VM_USER@$VM_MONITORING \
-            "mkdir -p ~/.ssh && chmod 700 ~/.ssh && echo '$SSH_PUBLIC_KEY' >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
-
-      - name: Push Ansible SSH public key on application VM
-        run: |
-          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no $VM_USER@$VM_APPLICATION \
-            "mkdir -p ~/.ssh && chmod 700 ~/.ssh && echo '$SSH_PUBLIC_KEY' >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
-
-      - name: Deploy Ansible Playbook on application VM
-        run: |
-          ssh -o StrictHostKeyChecking=no $VM_USER@$VM_APPLICATION '
+          ssh -o StrictHostKeyChecking=no ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} '
             cd /home/azureuser/ansible/application
             sudo ansible-playbook -i ../inventory deploy_application.yml
           '
-
-      - name: Deploy Ansible Playbook on monitoring VM
+      - name: Deploy Ansible Playbook on Remote Host
         run: |
-          ssh -o StrictHostKeyChecking=no $VM_USER@$VM_MONITORING '
+          ssh -o StrictHostKeyChecking=no ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} '
             cd /home/azureuser/ansible/monitoring
             sudo ansible-playbook -i ../inventory deploystack.yml
           '
