@@ -8,6 +8,12 @@ jobs:
     name: SSH & Run Ansible Playbook
     runs-on: ubuntu-latest
 
+    env:
+      VM_MONITORING: ${{ secrets.VM_MONITORING }}
+      VM_APPLICATION: ${{ secrets.VM_APPLICATION }}
+      VM_USER: ${{ secrets.VM_USER }}
+      SSH_PUBLIC_KEY: ${{ secrets.SSH_PUBLIC_KEY }}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -15,60 +21,43 @@ jobs:
       - name: Setup SSH private key
         run: |
           mkdir -p ~/.ssh
-          echo "${SSH_PRIVATE_KEY}" > ~/.ssh/id_rsa
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
 
       - name: Add known hosts for target VMs
         run: |
-          ssh-keyscan -H $VM_MONITORING >> ~/.ssh/known_hosts
-          ssh-keyscan -H $VM_APPLICATION >> ~/.ssh/known_hosts
+          ssh-keyscan -H "$VM_MONITORING" >> ~/.ssh/known_hosts
+          ssh-keyscan -H "$VM_APPLICATION" >> ~/.ssh/known_hosts
 
-      - name: Run Terraform 
+      - name: Run Terraform
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} '
-          cd /home/azureuser/terraform
-          terraform init
-          terraform plan -out=tfplan
-          terraform apply -auto-approve
+          ssh -o StrictHostKeyChecking=no $VM_USER@$VM_MONITORING '
+            cd /home/azureuser/terraform
+            terraform init
+            terraform plan -out=tfplan
+            terraform apply -auto-approve
           '
-          
+
       - name: Push Ansible SSH public key on monitoring VM
         run: |
-          ssh -i ~/.ssh/bootstrap_id_rsa -o StrictHostKeyChecking=no ${{ secrets.VM_USER }}@${{ secrets.VM_MONITORING }} \
-            "mkdir -p ~/.ssh && chmod 700 ~/.ssh && echo '${{ secrets.SSH_PUBLIC_KEY }}' >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no $VM_USER@$VM_MONITORING \
+            "mkdir -p ~/.ssh && chmod 700 ~/.ssh && echo '$SSH_PUBLIC_KEY' >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
 
       - name: Push Ansible SSH public key on application VM
         run: |
-          ssh -i ~/.ssh/bootstrap_id_rsa -o StrictHostKeyChecking=no ${{ secrets.VM_USER }}@${{ secrets.VM_APPLICATION }} \
-            "mkdir -p ~/.ssh && chmod 700 ~/.ssh && echo '${{ secrets.SSH_PUBLIC_KEY }}' >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no $VM_USER@$VM_APPLICATION \
+            "mkdir -p ~/.ssh && chmod 700 ~/.ssh && echo '$SSH_PUBLIC_KEY' >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
 
-      - name: Injecter la clé SSH sur VM monitoring
+      - name: Deploy Ansible Playbook on application VM
         run: |
-          ssh -o StrictHostKeyChecking=no $VM_USER@$VM_MONITORING "
-            mkdir -p ~/.ssh &&
-            echo '${SSH_PUBLIC_KEY}' >> ~/.ssh/authorized_keys &&
-            chmod 700 ~/.ssh &&
-            chmod 600 ~/.ssh/authorized_keys
-          "
-
-      - name: Injecter la clé SSH sur VM application
-        run: |
-          ssh -o StrictHostKeyChecking=no $VM_USER@$VM_APPLICATION "
-            mkdir -p ~/.ssh &&
-            echo '${SSH_PUBLIC_KEY}' >> ~/.ssh/authorized_keys &&
-            chmod 700 ~/.ssh &&
-            chmod 600 ~/.ssh/authorized_keys
-          "
-            
-      - name: Deploy Ansible Playbook on Remote Host
-        run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} '
+          ssh -o StrictHostKeyChecking=no $VM_USER@$VM_APPLICATION '
             cd /home/azureuser/ansible/application
             sudo ansible-playbook -i ../inventory deploy_application.yml
           '
-      - name: Deploy Ansible Playbook on Remote Host
+
+      - name: Deploy Ansible Playbook on monitoring VM
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} '
+          ssh -o StrictHostKeyChecking=no $VM_USER@$VM_MONITORING '
             cd /home/azureuser/ansible/monitoring
             sudo ansible-playbook -i ../inventory deploystack.yml
           '
