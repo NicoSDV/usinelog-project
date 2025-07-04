@@ -12,13 +12,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         
-      - name: Setup bootstrap SSH key
+      - name: Setup SSH private key
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.BOOTSTRAP_SSH_PRIVATE_KEY }}" > ~/.ssh/bootstrap_id_rsa
-          chmod 600 ~/.ssh/bootstrap_id_rsa
-          ssh-keyscan -H ${{ secrets.VM_HOST_MONITORING }} >> ~/.ssh/known_hosts
-          ssh-keyscan -H ${{ secrets.VM_HOST_APPLICATION }} >> ~/.ssh/known_hosts
+          echo "${SSH_PRIVATE_KEY}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+      - name: Add known hosts for target VMs
+        run: |
+          ssh-keyscan -H $VM_HOST_MONITORING >> ~/.ssh/known_hosts
+          ssh-keyscan -H $VM_HOST_APPLICATION >> ~/.ssh/known_hosts
 
       - name: Run Terraform 
         run: |
@@ -39,10 +42,23 @@ jobs:
           ssh -i ~/.ssh/bootstrap_id_rsa -o StrictHostKeyChecking=no ${{ secrets.VM_USER }}@${{ secrets.VM_HOST_APPLICATION }} \
             "mkdir -p ~/.ssh && chmod 700 ~/.ssh && echo '${{ secrets.SSH_PUBLIC_KEY }}' >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
 
-      - name: Setup Ansible SSH key
+      - name: Injecter la clé SSH sur VM monitoring
         run: |
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
+          ssh -o StrictHostKeyChecking=no $VM_USER@$VM_HOST_MONITORING "
+            mkdir -p ~/.ssh &&
+            echo '${SSH_PUBLIC_KEY}' >> ~/.ssh/authorized_keys &&
+            chmod 700 ~/.ssh &&
+            chmod 600 ~/.ssh/authorized_keys
+          "
+
+      - name: Injecter la clé SSH sur VM application
+        run: |
+          ssh -o StrictHostKeyChecking=no $VM_USER@$VM_HOST_APPLICATION "
+            mkdir -p ~/.ssh &&
+            echo '${SSH_PUBLIC_KEY}' >> ~/.ssh/authorized_keys &&
+            chmod 700 ~/.ssh &&
+            chmod 600 ~/.ssh/authorized_keys
+          "
             
       - name: Deploy Ansible Playbook on Remote Host
         run: |
