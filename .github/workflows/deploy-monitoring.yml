@@ -29,8 +29,10 @@ jobs:
           VM_MONITORING: ${{ secrets.VM_MONITORING }}
           VM_APPLICATION: ${{ secrets.VM_APPLICATION }}
         run: |
-          ssh-keyscan -H "$VM_MONITORING" >> ~/.ssh/known_hosts
-          ssh-keyscan -H "$VM_APPLICATION" >> ~/.ssh/known_hosts
+          echo "Adding known host for monitoring VM: $VM_MONITORING"
+          bash -c "ssh-keyscan -H $VM_MONITORING >> ~/.ssh/known_hosts"
+          echo "Adding known host for application VM: $VM_APPLICATION"
+          bash -c "ssh-keyscan -H $VM_APPLICATION >> ~/.ssh/known_hosts"
 
 
 
