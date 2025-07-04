@@ -26,8 +26,11 @@ jobs:
 
       - name: Add known hosts for target VMs
         run: |
+          export VM_MONITORING=${{ secrets.VM_MONITORING }}
+          export VM_APPLICATION=${{ secrets.VM_APPLICATION }}
           ssh-keyscan -H "$VM_MONITORING" >> ~/.ssh/known_hosts
           ssh-keyscan -H "$VM_APPLICATION" >> ~/.ssh/known_hosts
+
 
       - name: Run Terraform
         run: |
